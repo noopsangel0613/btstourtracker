@@ -4,45 +4,46 @@ Monitor BTS tour schedule JSON file and save snapshots when data changes.
 """
 import hashlib
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.error import URLError, HTTPError
-from urllib.request import urlopen
+
+import requests
 
 
 def download_json(url: str) -> dict:
     """Download JSON data from URL."""
-    with urlopen(url, timeout=30) as response:
-        return json.loads(response.read().decode('utf-8'))
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    return response.json()
 
 
 def calculate_hash(data: dict) -> str:
-    """Calculate SHA256 hash of JSON data."""
-    json_str = json.dumps(data, sort_keys=True)
+    """Calculate SHA256 hash of JSON data with stable serialization."""
+    json_str = json.dumps(data, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
     return hashlib.sha256(json_str.encode('utf-8')).hexdigest()
 
 
 def read_last_hash(file_path: Path) -> str:
     """Read the last saved hash from file."""
     if file_path.exists():
-        return file_path.read_text().strip()
+        return file_path.read_text(encoding='utf-8').strip()
     return ""
 
 
 def save_hash(file_path: Path, hash_value: str):
-    """Save hash to file."""
-    file_path.write_text(hash_value)
+    """Save hash to file with UTF-8 encoding and trailing newline."""
+    file_path.write_text(hash_value + '\n', encoding='utf-8')
 
 
 def save_snapshot(data: dict, snapshots_dir: Path):
     """Save timestamped snapshot of data."""
     snapshots_dir.mkdir(exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    snapshot_file = snapshots_dir / f"tour_schedule_{timestamp}.json"
+    snapshot_file = snapshots_dir / f"tour_{timestamp}.json"
     
     with open(snapshot_file, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        json.dump(data, f, indent=2, ensure_ascii=False, sort_keys=True)
+        f.write('\n')
     
     print(f"Snapshot saved: {snapshot_file}")
 
@@ -57,7 +58,7 @@ def main():
     print(f"Downloading data from {url}")
     try:
         data = download_json(url)
-    except (URLError, HTTPError) as e:
+    except requests.RequestException as e:
         print(f"Error downloading data: {e}")
         return
     except Exception as e:
