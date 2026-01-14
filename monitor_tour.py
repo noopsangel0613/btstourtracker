@@ -5,14 +5,15 @@ Monitor BTS tour schedule JSON file and save snapshots when data changes.
 import hashlib
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+from urllib.error import URLError, HTTPError
 from urllib.request import urlopen
 
 
 def download_json(url: str) -> dict:
     """Download JSON data from URL."""
-    with urlopen(url) as response:
+    with urlopen(url, timeout=30) as response:
         return json.loads(response.read().decode('utf-8'))
 
 
@@ -37,7 +38,7 @@ def save_hash(file_path: Path, hash_value: str):
 def save_snapshot(data: dict, snapshots_dir: Path):
     """Save timestamped snapshot of data."""
     snapshots_dir.mkdir(exist_ok=True)
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     snapshot_file = snapshots_dir / f"tour_schedule_{timestamp}.json"
     
     with open(snapshot_file, 'w', encoding='utf-8') as f:
@@ -56,8 +57,11 @@ def main():
     print(f"Downloading data from {url}")
     try:
         data = download_json(url)
-    except Exception as e:
+    except (URLError, HTTPError) as e:
         print(f"Error downloading data: {e}")
+        return
+    except Exception as e:
+        print(f"Unexpected error: {e}")
         return
     
     current_hash = calculate_hash(data)
