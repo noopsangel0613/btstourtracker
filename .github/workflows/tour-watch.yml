@@ -1,4 +1,4 @@
-name: Monitor BTS Tour Schedule
+name: BTS Tour Watcher
 
 on:
   schedule:
@@ -6,11 +6,12 @@ on:
     - cron: '*/15 * * * *'
   workflow_dispatch: # Allow manual trigger
 
+permissions:
+  contents: write
+
 jobs:
-  monitor:
+  watch:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # Required to push changes back to the repository
     
     steps:
       - name: Checkout repository
@@ -21,15 +22,18 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Run monitor script
-        run: python monitor_tour.py
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Run tracker script
+        run: python tracker.py
       
       - name: Check for changes
         id: check_changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add snapshots/ last_hash.txt
           if git diff --staged --quiet; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
           else
