@@ -2,9 +2,8 @@ name: BTS Tour Watcher
 
 on:
   schedule:
-    # Run every 15 minutes
     - cron: '*/15 * * * *'
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,22 +11,20 @@ permissions:
 jobs:
   watch:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
-      
+        run: pip install requests
+
       - name: Run tracker script
-        run: python tracker.py
-      
+        run: python tracker.py   # or monitor_tour.py (must match filename)
+
       - name: Check for changes
         id: check_changes
         run: |
@@ -39,7 +36,7 @@ jobs:
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Commit and push changes
         if: steps.check_changes.outputs.has_changes == 'true'
         run: |
